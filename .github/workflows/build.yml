@@ -33,7 +33,8 @@ jobs:
     - name: Build APK with Buildozer
       run: |
         chmod +x *.py
-        buildozer android debug
+        # Le "yes |" accepte automatiquement les licences Android
+        yes | buildozer android debug
         
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
