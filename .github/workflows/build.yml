@@ -30,29 +30,40 @@ jobs:
         pip install --upgrade pip
         pip install cython==0.29.33 buildozer
         
-    - name: Setup Android SDK & Accept Licenses
+    - name: Pre-install Android SDK components
       run: |
-        # 1. Créer le dossier des licences et accepter les licences Android
+        # Créer le dossier des licences
         mkdir -p $HOME/.buildozer/android/platform/android-sdk/licenses
+        
+        # Accepter les licences Android automatiquement
         echo "8933bad161af4178b1185d1a37fbf41ea5269c55" > $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
         echo "d56f5187479451eabf01fb78af6dfcb131a6481e" >> $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+        echo "24333f8a63b6825ea9c5514f83c2829b004d1feb" >> $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
         
-        # 2. Télécharger et installer manuellement les Command Line Tools (pour éviter le bug sdkmanager manquant)
-        mkdir -p $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest
-        cd $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest
-        wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
-        unzip -q cmdline-tools.zip
+        # Télécharger et installer les Command Line Tools MANUELLEMENT
+        CMDLINE_TOOLS_DIR=$HOME/.buildozer/android/platform/android-sdk/cmdline-tools
+        mkdir -p $CMDLINE_TOOLS_DIR/latest
+        cd $CMDLINE_TOOLS_DIR/latest
+        
+        # Télécharger les tools
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O tools.zip
+        
+        # Extraire
+        unzip -q tools.zip
+        
+        # Déplacer le contenu
         mv cmdline-tools/* .
-        rm -rf cmdline-tools cmdline-tools.zip
+        rm -rf cmdline-tools tools.zip
         
-        # 3. Installer les composants de base requis
-        yes | ./bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" || true
+        # Installer les composants de base requis
+        export PATH=$PATH:$CMDLINE_TOOLS_DIR/latest/bin
+        yes | sdkmanager --licenses || true
+        sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" || true
         
     - name: Build APK with Buildozer
       run: |
         chmod +x *.py
-        # Le "yes |" est une sécurité supplémentaire pour accepter toute question résiduelle
-        yes | buildozer android debug
+        buildozer android debug
         
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
