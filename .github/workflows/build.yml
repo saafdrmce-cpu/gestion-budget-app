@@ -23,24 +23,29 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y build-essential git python3-dev python3-pip \
             autoconf automake libtool pkg-config zlib1g-dev \
-            libncurses5-dev libffi-dev libssl-dev openjdk-17-jdk unzip zip
+            libncurses5-dev libffi-dev libssl-dev openjdk-17-jdk unzip zip wget
             
     - name: Install Buildozer and Cython
       run: |
         pip install --upgrade pip
         pip install cython==0.29.33 buildozer
         
-    - name: Accept Android SDK Licenses
+    - name: Setup Android SDK Command Line Tools & Accept Licenses
       run: |
-        mkdir -p ~/.buildozer/android/platform/android-sdk/licenses
-        echo "8933bad161af4178b1185d1a37fbf41ea5269c55" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-        echo "d56f5187479451eabf01fb78af6dfcb131a6481e" >> ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+        mkdir -p $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest
+        cd $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
+        unzip -q cmdline-tools.zip
+        mv cmdline-tools/* .
+        rm -rf cmdline-tools cmdline-tools.zip
+        # Accepte automatiquement toutes les licences Android
+        yes | $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
         
     - name: Build APK with Buildozer
       run: |
         chmod +x *.py
-        # Le "yes |" accepte automatiquement toute autre question éventuelle
-        yes | buildozer android debug
+        # Plus besoin de "yes |" ici, les licences sont déjà acceptées !
+        buildozer android debug
         
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
