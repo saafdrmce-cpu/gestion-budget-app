@@ -30,30 +30,27 @@ jobs:
         pip install --upgrade pip
         pip install cython==0.29.33 buildozer
         
-    - name: Setup Android SDK & Fix Buildozer Path
+    - name: Setup Android SDK & Accept Licenses
       run: |
-        # 1. Créer le dossier obsolète que Buildozer cherche obstinément
-        mkdir -p $HOME/.buildozer/android/platform/android-sdk/tools/bin
+        mkdir -p $HOME/.buildozer/android/platform/android-sdk/licenses
+        echo "8933bad161af4178b1185d1a37fbf41ea5269c55" > $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+        echo "d56f5187479451eabf01fb78af6dfcb131a6481e" >> $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+        echo "24333f8a63b6825ea9c5514f83c2829b004d1feb" >> $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
         
-        # 2. Télécharger les "cmdline-tools" officiels d'Android
-        wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O /tmp/cmdline.zip
-        unzip -q /tmp/cmdline.zip -d /tmp/
-        
-        # 3. Les placer dans la structure moderne
         mkdir -p $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest
-        mv /tmp/cmdline-tools/* $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/
+        cd $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O tools.zip
+        unzip -q tools.zip
+        mv cmdline-tools/* .
+        rm -rf cmdline-tools tools.zip
         
-        # 4. LE LIEN MAGIQUE : Créer un raccourci pour tromper Buildozer
-        ln -sf $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager $HOME/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager
-        
-        # 5. Accepter automatiquement toutes les licences Android
-        yes | $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
+        export PATH=$PATH:$HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin
+        yes | sdkmanager --licenses || true
+        sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" || true
         
     - name: Build APK with Buildozer
       run: |
         chmod +x *.py
-        # S'assurer que le PATH contient les outils
-        export PATH=$PATH:$HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin:$HOME/.buildozer/android/platform/android-sdk/platform-tools
         buildozer android debug
         
     - name: Upload APK artifact
