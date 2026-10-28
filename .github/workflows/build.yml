@@ -1,88 +1,56 @@
+
 name: Build Android APK
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-22.04
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-        
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential git python3-dev python3-pip \
-            autoconf automake libtool pkg-config zlib1g-dev \
-            libncurses5-dev libffi-dev libssl-dev openjdk-17-jdk unzip zip wget
-            
-    - name: Install Buildozer and Cython
-      run: |
-        pip install --upgrade pip
-        pip install cython==0.29.33 buildozer
-        
-    - name: Setup Android SDK & Accept Licenses
-      run: |
-        mkdir -p $HOME/.buildozer/android/platform/android-sdk/licenses
-        echo "8933bad161af4178b1185d1a37fbf41ea5269c55" > $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-        echo "d56f5187479451eabf01fb78af6dfcb131a6481e" >> $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-        echo "24333f8a63b6825ea9c5514f83c2829b004d1feb" >> $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-        
-        mkdir -p $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest
-        cd $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest
-        wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O tools.zip
-        unzip -q tools.zip
-        mv cmdline-tools/* .
-        rm -rf cmdline-tools tools.zip
-        
-        export PATH=$PATH:$HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin
-        yes | sdkmanager --licenses || true
-        sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" || true
-        
-    - name: FORCE OVERWRITE buildozer.spec with Python 3.11.6
-      run: |
-        # Cette commande efface l'ancien fichier et en crée un nouveau parfait
-        cat << 'EOF' > buildozer.spec
-[app]
-title = Gestion Budget MAD
-package.name = gestionbudget
-package.domain = org.monapp
-source.dir = .
-source.include_exts = py,png,jpg,kv,atlas
-version = 1.0
-requirements = hostpython3==3.11.6, python3==3.11.6, kivy==2.2.1, kivymd==1.1.1, pyjnius, android
-orientation = portrait
-fullscreen = 0
-android.permissions = INTERNET
-android.api = 33
-android.ndk_api = 21
-android.minapi = 21
-android.accept_sdk_license = True
-p4a.branch = master
 
-[buildozer]
-log_level = 2
-warn_on_root = 0
-EOF
-        echo "=== VÉRIFICATION : Le fichier buildozer.spec a été réécrit avec Python 3.11.6 ==="
-        grep "requirements" buildozer.spec
-        
-    - name: Build APK with Buildozer
-      run: |
-        chmod +x *.py
-        buildozer android debug
-        
-    - name: Upload APK artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: Gestion-Budget-MAD-APK
-        path: bin/*.apk
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential git zip unzip \
+            openjdk-17-jdk python3-dev \
+            autoconf automake libtool pkg-config \
+            zlib1g-dev libncurses5-dev libffi-dev \
+            libssl-dev cmake
+
+      - name: Install Buildozer
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "Cython==0.29.33" buildozer
+
+      - name: Verify project configuration
+        run: |
+          echo "=== buildozer.spec ==="
+          cat buildozer.spec
+          echo "=== Python syntax ==="
+          python -m py_compile main.py database.py
+
+      - name: Build APK with Buildozer
+        run: |
+          buildozer android debug
+        env:
+          P4A_RELEASE: "0"
+
+      - name: Upload APK artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Gestion-Budget-MAD-APK
+          path: bin/*.apk
+          if-no-files-found: error
