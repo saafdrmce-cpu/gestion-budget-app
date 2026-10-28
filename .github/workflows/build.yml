@@ -30,30 +30,41 @@ jobs:
         pip install --upgrade pip
         pip install cython==0.29.33 buildozer
         
-    - name: Setup Android SDK & Accept Licenses
+    - name: CRITICAL FIX - Force SDK Manager Symlink
       run: |
-        mkdir -p $HOME/.buildozer/android/platform/android-sdk/licenses
-        echo "8933bad161af4178b1185d1a37fbf41ea5269c55" > $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-        echo "d56f5187479451eabf01fb78af6dfcb131a6481e" >> $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-        echo "24333f8a63b6825ea9c5514f83c2829b004d1feb" >> $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+        echo "🔧 Application du correctif critique pour Buildozer..."
+        SDK_DIR=$HOME/.buildozer/android/platform/android-sdk
         
-        mkdir -p $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest
-        cd $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest
-        wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O tools.zip
-        unzip -q tools.zip
-        mv cmdline-tools/* .
-        rm -rf cmdline-tools tools.zip
+        # 1. Nettoyer tout état corrompu précédent
+        rm -rf $SDK_DIR
         
-        export PATH=$PATH:$HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin
+        # 2. Créer le dossier EXACT que Buildozer vérifie en dur
+        mkdir -p $SDK_DIR/tools/bin
+        
+        # 3. Télécharger les vrais Command Line Tools d'Android
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O /tmp/cmdline.zip
+        unzip -q /tmp/cmdline.zip -d /tmp/
+        
+        # 4. Les déplacer vers l'emplacement moderne
+        mkdir -p $SDK_DIR/cmdline-tools/latest
+        mv /tmp/cmdline-tools/* $SDK_DIR/cmdline-tools/latest/
+        
+        # 5. LE LIEN MAGIQUE : Créer un raccourci pour tromper Buildozer
+        ln -sf $SDK_DIR/cmdline-tools/latest/bin/sdkmanager $SDK_DIR/tools/bin/sdkmanager
+        
+        # 6. PREUVE : Afficher le lien dans les logs (vous devez voir cette ligne)
+        echo "✅ Vérification du lien symbolique :"
+        ls -l $SDK_DIR/tools/bin/sdkmanager
+        
+        # 7. Accepter automatiquement toutes les licences avec le VRAI sdkmanager
+        export PATH=$PATH:$SDK_DIR/cmdline-tools/latest/bin
         yes | sdkmanager --licenses || true
         sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" || true
-        
-    - name: FORCE Python 3.11.6 in buildozer.spec
+
+    - name: Verify buildozer.spec requirements
       run: |
-        # Cette commande force la bonne ligne de requirements, peu importe ce qu'il y a dans le fichier
-        sed -i 's/^requirements =.*/requirements = python3==3.11.6, kivy==2.2.1, kivymd==1.1.1, pyjnius, android/' buildozer.spec
         echo "=== VÉRIFICATION DES REQUIREMENTS ==="
-        grep "requirements =" buildozer.spec
+        grep "requirements =" buildozer.spec || echo "Fichier buildozer.spec introuvable !"
         
     - name: Build APK with Buildozer
       run: |
