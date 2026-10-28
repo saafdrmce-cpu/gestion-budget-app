@@ -40,11 +40,17 @@ jobs:
           echo "=== Python syntax ==="
           python -m py_compile main.py database.py
 
+    
       - name: Remove broken cached Python environment
         run: |
-          find .buildozer/android/platform \
-            -type d -path '*/build/venv' \
-            -prune -exec rm -rf {} +
+          if [ -d ".buildozer/android/platform" ]; then
+            find .buildozer/android/platform \
+              -type d -path '*/build/venv' \
+              -prune -exec rm -rf {} +
+          else
+            echo "Dossier Buildozer absent : rien à nettoyer."
+          fi
+
 
       - name: Build APK with Buildozer
         run: |
