@@ -30,41 +30,51 @@ jobs:
         pip install --upgrade pip
         pip install cython==0.29.33 buildozer
         
-    - name: CRITICAL FIX - Force SDK Manager Symlink
+    - name: Setup Android SDK & Accept Licenses
       run: |
-        echo "🔧 Application du correctif critique pour Buildozer..."
-        SDK_DIR=$HOME/.buildozer/android/platform/android-sdk
+        mkdir -p $HOME/.buildozer/android/platform/android-sdk/licenses
+        echo "8933bad161af4178b1185d1a37fbf41ea5269c55" > $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+        echo "d56f5187479451eabf01fb78af6dfcb131a6481e" >> $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+        echo "24333f8a63b6825ea9c5514f83c2829b004d1feb" >> $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
         
-        # 1. Nettoyer tout état corrompu précédent
-        rm -rf $SDK_DIR
+        mkdir -p $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest
+        cd $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O tools.zip
+        unzip -q tools.zip
+        mv cmdline-tools/* .
+        rm -rf cmdline-tools tools.zip
         
-        # 2. Créer le dossier EXACT que Buildozer vérifie en dur
-        mkdir -p $SDK_DIR/tools/bin
-        
-        # 3. Télécharger les vrais Command Line Tools d'Android
-        wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O /tmp/cmdline.zip
-        unzip -q /tmp/cmdline.zip -d /tmp/
-        
-        # 4. Les déplacer vers l'emplacement moderne
-        mkdir -p $SDK_DIR/cmdline-tools/latest
-        mv /tmp/cmdline-tools/* $SDK_DIR/cmdline-tools/latest/
-        
-        # 5. LE LIEN MAGIQUE : Créer un raccourci pour tromper Buildozer
-        ln -sf $SDK_DIR/cmdline-tools/latest/bin/sdkmanager $SDK_DIR/tools/bin/sdkmanager
-        
-        # 6. PREUVE : Afficher le lien dans les logs (vous devez voir cette ligne)
-        echo "✅ Vérification du lien symbolique :"
-        ls -l $SDK_DIR/tools/bin/sdkmanager
-        
-        # 7. Accepter automatiquement toutes les licences avec le VRAI sdkmanager
-        export PATH=$PATH:$SDK_DIR/cmdline-tools/latest/bin
+        export PATH=$PATH:$HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin
         yes | sdkmanager --licenses || true
         sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" || true
-
-    - name: Verify buildozer.spec requirements
+        
+    - name: FORCE OVERWRITE buildozer.spec with Python 3.11.6
       run: |
-        echo "=== VÉRIFICATION DES REQUIREMENTS ==="
-        grep "requirements =" buildozer.spec || echo "Fichier buildozer.spec introuvable !"
+        # Cette commande efface l'ancien fichier et en crée un nouveau parfait
+        cat << 'EOF' > buildozer.spec
+[app]
+title = Gestion Budget MAD
+package.name = gestionbudget
+package.domain = org.monapp
+source.dir = .
+source.include_exts = py,png,jpg,kv,atlas
+version = 1.0
+requirements = hostpython3==3.11.6, python3==3.11.6, kivy==2.2.1, kivymd==1.1.1, pyjnius, android
+orientation = portrait
+fullscreen = 0
+android.permissions = INTERNET
+android.api = 33
+android.ndk_api = 21
+android.minapi = 21
+android.accept_sdk_license = True
+p4a.branch = master
+
+[buildozer]
+log_level = 2
+warn_on_root = 0
+EOF
+        echo "=== VÉRIFICATION : Le fichier buildozer.spec a été réécrit avec Python 3.11.6 ==="
+        grep "requirements" buildozer.spec
         
     - name: Build APK with Buildozer
       run: |
