@@ -90,7 +90,10 @@ jobs:
           else
             echo "Aucun ancien dossier de compilation à nettoyer."
           fi
-
+      - name: Clean previous build
+        run: |
+          rm -rf .buildozer
+          rm -rf bin
       # 9. Compiler et enregistrer les erreurs
       - name: Build APK with Buildozer
         run: |
