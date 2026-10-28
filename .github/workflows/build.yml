@@ -30,23 +30,33 @@ jobs:
         pip install --upgrade pip
         pip install cython==0.29.33 buildozer
         
-    - name: Setup Android SDK & Accept Licenses
+    - name: Force Install Android SDK Manager (Buildozer Fix)
       run: |
-        mkdir -p $HOME/.buildozer/android/platform/android-sdk/licenses
-        echo "8933bad161af4178b1185d1a37fbf41ea5269c55" > $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-        echo "d56f5187479451eabf01fb78af6dfcb131a6481e" >> $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-        echo "24333f8a63b6825ea9c5514f83c2829b004d1feb" >> $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+        # 1. Créer la structure de dossier EXACTE que Buildozer vérifie en dur
+        mkdir -p $HOME/.buildozer/android/platform/android-sdk/tools/bin
         
+        # 2. Télécharger les Command Line Tools officiels d'Android
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O /tmp/cmdline.zip
+        unzip -q /tmp/cmdline.zip -d /tmp/
+        
+        # 3. Les déplacer vers l'emplacement moderne
         mkdir -p $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest
-        cd $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest
-        wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O tools.zip
-        unzip -q tools.zip
-        mv cmdline-tools/* .
-        rm -rf cmdline-tools tools.zip
+        mv /tmp/cmdline-tools/* $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/
         
-        export PATH=$PATH:$HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin
-        yes | sdkmanager --licenses || true
-        sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" || true
+        # 4. LE LIEN MAGIQUE : Créer un raccourci pour tromper la vérification de Buildozer
+        ln -sf $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager $HOME/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager
+        
+        # 5. VÉRIFICATION : Afficher le lien pour confirmer qu'il existe (vous le verrez dans les logs)
+        ls -l $HOME/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager
+        
+        # 6. Accepter automatiquement toutes les licences Android
+        yes | $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
+        
+    - name: Verify buildozer.spec requirements
+      run: |
+        # Cette étape vérifie que vous avez bien forcé Python 3.11.6
+        echo "=== VOS REQUIREMENTS ACTUELS ==="
+        cat buildozer.spec | grep requirements || echo "Fichier buildozer.spec introuvable !"
         
     - name: Build APK with Buildozer
       run: |
