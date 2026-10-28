@@ -4,65 +4,121 @@ name: Build Android APK
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-22.04
+    timeout-minutes: 120
 
     steps:
+      # 1. Télécharger le code du projet
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # 2. Configurer Python pour Buildozer
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
+          cache: pip
 
+      # 3. Installer les dépendances système
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            build-essential git zip unzip \
-            openjdk-17-jdk python3-dev \
-            autoconf automake libtool pkg-config \
-            zlib1g-dev libncurses5-dev libffi-dev \
-            libssl-dev cmake
+            build-essential \
+            git \
+            zip \
+            unzip \
+            openjdk-17-jdk \
+            python3-dev \
+            autoconf \
+            automake \
+            libtool \
+            pkg-config \
+            zlib1g-dev \
+            libncurses5-dev \
+            libffi-dev \
+            libssl-dev \
+            cmake
 
+      # 4. Installer Buildozer et Cython
       - name: Install Buildozer
         run: |
           python -m pip install --upgrade pip
           python -m pip install "Cython==0.29.33" buildozer
 
+      # 5. Vérifier la configuration
       - name: Verify project configuration
         run: |
+          echo "=== buildozer.spec ==="
           cat buildozer.spec
-          python -m py_compile main.py database.py
+
+          echo "=== Python version ==="
+          python --version
+
+          echo "=== Buildozer version ==="
           buildozer --version
 
-      - name: Restore Android SDK cache
+          echo "=== Python syntax ==="
+          python -m py_compile main.py database.py
+
+      # 6. Restaurer les outils Android en cache
+      - name: Restore Buildozer cache
         uses: actions/cache/restore@v4
         with:
           path: ~/.buildozer
-          key: android-sdk-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}-${{ github.run_id }}
+          key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
-            android-sdk-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}-
-            android-sdk-${{ runner.os }}-
-     
+            buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}-
+            buildozer-${{ runner.os }}-
+
+      # 7. Afficher la configuration Android
+      - name: Show Android configuration
+        run: |
+          grep -E '^(requirements|p4a.branch|android.api|android.ndk_api|android.minapi|android.ndk) *=' buildozer.spec || true
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          java -version
+
+      # 8. Nettoyer les anciens objets compilés
       - name: Clean previous Android build
         run: |
-             rm -rf .buildozer/android/platform/build-arm64-v8a_armeabi-v7a
-     
+          if [ -d ".buildozer/android/platform/build-arm64-v8a_armeabi-v7a" ]; then
+            rm -rf .buildozer/android/platform/build-arm64-v8a_armeabi-v7a
+          else
+            echo "Aucun ancien dossier de compilation à nettoyer."
+          fi
+
+      # 9. Compiler et enregistrer les erreurs
       - name: Build APK with Buildozer
-        run: buildozer android debug
+        run: |
+          set -o pipefail
+          buildozer -v android debug 2>&1 | tee build.log
         env:
           P4A_RELEASE: "0"
 
-      - name: Save Android SDK cache
+      # 10. Sauvegarder le cache, même si la compilation échoue
+      - name: Save Buildozer cache
         if: always()
         uses: actions/cache/save@v4
         with:
           path: ~/.buildozer
-          key: android-sdk-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}-${{ github.run_id }}
+          key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}-${{ github.run_id }}-${{ github.run_attempt }}
 
+      # 11. Publier le journal de compilation
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Gestion-Budget-MAD-build-log
+          path: build.log
+          if-no-files-found: warn
+          retention-days: 7
+
+      # 12. Publier l'APK si la compilation réussit
       - name: Upload APK artifact
         if: success()
         uses: actions/upload-artifact@v4
@@ -70,3 +126,4 @@ jobs:
           name: Gestion-Budget-MAD-APK
           path: bin/*.apk
           if-no-files-found: error
+          retention-days: 14
