@@ -2,7 +2,6 @@
 name: Build Android APK
 
 on:
-
   workflow_dispatch:
 
 jobs:
@@ -35,28 +34,30 @@ jobs:
 
       - name: Verify project configuration
         run: |
-          echo "=== buildozer.spec ==="
           cat buildozer.spec
-          echo "=== Python syntax ==="
           python -m py_compile main.py database.py
+          buildozer --version
 
-    
-      - name: Remove broken cached Python environment
-        run: |
-          if [ -d ".buildozer/android/platform" ]; then
-            find .buildozer/android/platform \
-              -type d -path '*/build/venv' \
-              -prune -exec rm -rf {} +
-          else
-            echo "Dossier Buildozer absent : rien à nettoyer."
-          fi
-
+      - name: Restore Android SDK cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.buildozer
+          key: android-sdk-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}-${{ github.run_id }}
+          restore-keys: |
+            android-sdk-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}-
+            android-sdk-${{ runner.os }}-
 
       - name: Build APK with Buildozer
-        run: |
-          buildozer android debug
+        run: buildozer android debug
         env:
           P4A_RELEASE: "0"
+
+      - name: Save Android SDK cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.buildozer
+          key: android-sdk-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}-${{ github.run_id }}
 
       - name: Upload APK artifact
         if: success()
