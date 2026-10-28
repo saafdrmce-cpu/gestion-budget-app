@@ -46,7 +46,11 @@ jobs:
           restore-keys: |
             android-sdk-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}-
             android-sdk-${{ runner.os }}-
-
+     
+      - name: Clean previous Android build
+        run: |
+             rm -rf .buildozer/android/platform/build-arm64-v8a_armeabi-v7a
+     
       - name: Build APK with Buildozer
         run: buildozer android debug
         env:
