@@ -9,7 +9,7 @@ source.include_exts = py,png,jpg,kv,atlas
 version = 1.0
 
 # FORCER PYTHON 3.11.6 POUR ÉVITER LE BUG AVEC 3.14
-requirements = hostpython3==3.11.6, python3==3.11.6, kivy==2.2.1, kivymd==1.1.1, pyjnius, android
+requirements = python3,kivy==2.2.1,kivymd==1.1.1,requests,certifi,chardet,filetype
 
 orientation = portrait
 fullscreen = 0
