@@ -2,16 +2,15 @@
 title = Gestion Budget MAD
 package.name = gestionbudget
 package.domain = org.monapp
-
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
-
 version = 1.0
 
 requirements = python3,kivy==2.2.1,kivymd==1.1.1,pyjnius
 orientation = portrait
 fullscreen = 0
 android.permissions = INTERNET
+
 android.api = 33
 android.ndk_api = 21
 android.minapi = 21
