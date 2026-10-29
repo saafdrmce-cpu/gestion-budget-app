@@ -13,17 +13,20 @@ jobs:
     timeout-minutes: 120
 
     steps:
-      # 1. Télécharger le code du projet
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. Configurer Python pour Buildozer
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
-      # 3. Installer les dépendances système
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -32,40 +35,46 @@ jobs:
             git \
             zip \
             unzip \
-            openjdk-17-jdk \
-            python3-dev \
             autoconf \
             automake \
             libtool \
             pkg-config \
             zlib1g-dev \
             libncurses5-dev \
+            libncursesw5-dev \
             libffi-dev \
             libssl-dev \
-            cmake
+            cmake \
+            libltdl-dev
 
-      # 4. Installer Buildozer et Cython
-      - name: Install Buildozer
+      - name: Install Buildozer and Cython
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install "Cython==0.29.33" buildozer
+          python -m pip install --upgrade pip setuptools
+          python -m pip install "Cython==0.29.34" buildozer
 
-      # 5. Vérifier la configuration
       - name: Verify project configuration
         run: |
           echo "=== buildozer.spec ==="
           cat buildozer.spec
 
-          echo "=== Python version ==="
+          echo "=== Host Python ==="
           python --version
 
-          echo "=== Buildozer version ==="
+          echo "=== Java ==="
+          java -version
+          javac -version
+
+          echo "=== Buildozer ==="
           buildozer --version
 
           echo "=== Python syntax ==="
           python -m py_compile main.py database.py
 
-      # 6. Restaurer les outils Android en cache
+          echo "=== Android settings ==="
+          grep -E '^(requirements|p4a.branch|android.api|android.ndk_api|android.minapi|android.ndk) *=' buildozer.spec || true
+
+      # Cache seulement les outils et SDK Android.
+      # Ne pas supprimer .buildozer après la restauration du cache.
       - name: Restore Buildozer cache
         uses: actions/cache/restore@v4
         with:
@@ -75,34 +84,19 @@ jobs:
             buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}-
             buildozer-${{ runner.os }}-
 
-      # 7. Afficher la configuration Android
-      - name: Show Android configuration
+      - name: Clean old APK and project build files
         run: |
-          grep -E '^(requirements|p4a.branch|android.api|android.ndk_api|android.minapi|android.ndk) *=' buildozer.spec || true
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          java -version
-
-      # 8. Nettoyer les anciens objets compilés
-      - name: Clean previous Android build
-        run: |
-          if [ -d ".buildozer/android/platform/build-arm64-v8a_armeabi-v7a" ]; then
-            rm -rf .buildozer/android/platform/build-arm64-v8a_armeabi-v7a
-          else
-            echo "Aucun ancien dossier de compilation à nettoyer."
-          fi
-      - name: Clean previous build
-        run: |
-          rm -rf .buildozer
           rm -rf bin
-      # 9. Compiler et enregistrer les erreurs
+          rm -rf .buildozer/android/platform/build-arm64-v8a_armeabi-v7a
+
       - name: Build APK with Buildozer
         run: |
           set -o pipefail
           buildozer -v android debug 2>&1 | tee build.log
         env:
           P4A_RELEASE: "0"
+          PYTHONUNBUFFERED: "1"
 
-      # 10. Sauvegarder le cache, même si la compilation échoue
       - name: Save Buildozer cache
         if: always()
         uses: actions/cache/save@v4
@@ -110,7 +104,6 @@ jobs:
           path: ~/.buildozer
           key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}-${{ github.run_id }}-${{ github.run_attempt }}
 
-      # 11. Publier le journal de compilation
       - name: Upload build log
         if: always()
         uses: actions/upload-artifact@v4
@@ -120,7 +113,6 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
-      # 12. Publier l'APK si la compilation réussit
       - name: Upload APK artifact
         if: success()
         uses: actions/upload-artifact@v4
