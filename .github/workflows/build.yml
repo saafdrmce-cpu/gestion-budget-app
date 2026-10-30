@@ -126,3 +126,7 @@ jobs:
           grep -E '^(requirements|p4a.branch|android.api|android.ndk_api|android.minapi) *=' buildozer.spec || true
           python --version
           java -version
+      - name: Check python-for-android Python versions
+        run: |
+          grep -R "version =" .buildozer/android/platform/python-for-android/pythonforandroid/recipes/hostpython3 || true
+          grep -R "version =" .buildozer/android/platform/python-for-android/pythonforandroid/recipes/python3 || true
