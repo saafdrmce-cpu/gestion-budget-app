@@ -121,3 +121,8 @@ jobs:
           path: bin/*.apk
           if-no-files-found: error
           retention-days: 14
+      - name: Show Android configuration
+        run: |
+          grep -E '^(requirements|p4a.branch|android.api|android.ndk_api|android.minapi) *=' buildozer.spec || true
+          python --version
+          java -version
