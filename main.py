@@ -4,6 +4,7 @@ Design Material Design professionnel avec icônes.
 """
 import os
 import re
+import traceback
 from kivy.clock import mainthread
 from kivy.utils import platform
 import sqlite3
@@ -1343,7 +1344,28 @@ class BudgetApp(MDApp):
         self.theme_cls.primary_palette = "Blue"
         self.theme_cls.theme_style = "Light"
         self.title = "Gestion Budget - MAD"
-        return RootLayout()
+        try:
+            return RootLayout()
+        except Exception:
+            from kivy.uix.label import Label
+            from kivy.uix.scrollview import ScrollView
+            trace = traceback.format_exc()
+            print(trace)
+            scroll = ScrollView()
+            label = Label(
+                text=f"Erreur au démarrage :\n\n{trace}",
+                color=(0.8, 0.1, 0.1, 1),
+                size_hint_y=None,
+                halign="left",
+                valign="top",
+                padding=(dp(12), dp(12)),
+            )
+            label.bind(
+                width=lambda inst, w: setattr(inst, "text_size", (w, None)),
+                texture_size=lambda inst, s: setattr(inst, "height", s[1]),
+            )
+            scroll.add_widget(label)
+            return scroll
 
 
 if __name__ == '__main__':

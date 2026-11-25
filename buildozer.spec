@@ -10,7 +10,7 @@ source.exclude_patterns = compile_android.py
 
 version = 1.1
 
-requirements = python3,android,sqlite3,kivy==2.3.1,kivymd==1.1.1,chardet==5.2.0,pyjnius
+requirements = python3,android,sqlite3,kivy==2.3.2,kivymd==1.1.1,chardet==5.2.0,pyjnius
 orientation = portrait
 fullscreen = 0
 android.api = 36
