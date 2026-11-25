@@ -1,0 +1,36 @@
+name: Compiler Gestion Budget pour Android
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  apk:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Installer les outils de compilation
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y autoconf automake autopoint build-essential ccache cmake gettext git libffi-dev libltdl-dev libncurses-dev libssl-dev libtool libtool-bin pkg-config unzip zip zlib1g-dev
+          python -m pip install buildozer setuptools 'cython<3'
+      - name: Compiler et vérifier les bibliothèques ARM64
+        run: python compile_android.py
+      - name: Conserver l'APK de test
+        uses: actions/upload-artifact@v4
+        with:
+          name: gestion-budget-android-arm64
+          path: bin/*.apk
+          if-no-files-found: error
+          retention-days: 14
